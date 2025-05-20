@@ -12,6 +12,6 @@ public interface UserMapper {
     @Select("select * from users")
     List<User> userlist();
 
-    @Insert("insert into users (account, password, nickName) VALUES (#{account},#{password},#{nickName})")
+    @Insert("insert into users (username, password) VALUES (#{username},#{password})")
     int addUser(User user);
 }

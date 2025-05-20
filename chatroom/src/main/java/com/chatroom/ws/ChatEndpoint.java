@@ -2,17 +2,18 @@ package com.chatroom.ws;
 
 import com.alibaba.fastjson.JSONObject;
 import com.chatroom.config.GetHttpSessionConfig;
-import com.chatroom.controller.ChannelController;
-import com.chatroom.controller.UserController;
+import com.chatroom.mapper.MessageMapper;
+import com.chatroom.pojo.Message;
+import com.chatroom.utils.SpringContextUtil;
 import jakarta.servlet.http.HttpSession;
 import jakarta.websocket.*;
-import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
+import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 
@@ -24,10 +25,24 @@ public class ChatEndpoint {
     private static final Map<String, Session> userSession = new ConcurrentHashMap<>();
     private HttpSession httpSession;
 
+    private MessageMapper messageMapper;
+
+    private MessageMapper getMessageMapper(){
+        if(messageMapper == null){
+            messageMapper = SpringContextUtil.getBean(MessageMapper.class);
+        }
+        return messageMapper;
+    }
+
     private void broadcast(String message) {
-        Collection<Session> sessions = userSession.values();
-        for (Session session : sessions) {
-            session.getAsyncRemote().sendText(message);
+        try {
+            Set<Map.Entry<String, Session>> entries = userSession.entrySet();
+            for (Map.Entry<String, Session> entry : entries) {
+                Session session = entry.getValue();
+                session.getBasicRemote().sendText(message);
+            }
+        }catch (Exception e) {
+            log.error(e.getMessage());
         }
     }
 
@@ -41,29 +56,34 @@ public class ChatEndpoint {
 
 
     @OnMessage
-    public void onMessage(String message, Session session) {
+    public void onMessage(String message) {
         JSONObject jsonObject = JSONObject.parseObject(message);
         String username = jsonObject.getString("username");
         String content = jsonObject.getString("content");
-        Session receiverSession = userSession.get(username);
-        if (receiverSession != null) {
-            try {
-                receiverSession.getBasicRemote().sendText(content);
-            } catch (Exception e) {
-                log.error("发送消息出错：", e);
+        try{
+            Message msg = new Message();
+            msg.setContent(content);
+            msg.setUsername(username);
+            msg.setSendTime(LocalDateTime.now());
+             MessageMapper mapper = getMessageMapper();
+            int res = mapper.insert(msg);
+            if (res > 0) {
+                log.info("消息保存成功");
+            }else {
+                log.info("消息保存失败");
             }
-        } else {
-            log.error("username not exist");
+            broadcast(message);
+            log.info("{}:{}", username, content);
+        }catch (Exception e){
+            log.error(e.getMessage());
         }
     }
 
     @OnClose
     public void onClose(Session session) {
-
+        String username = (String) this.httpSession.getAttribute("user");
+        userSession.remove(username);
+        broadcast(username + "离开了");
     }
 
-    @OnError
-    public void onError(Session session, Throwable throwable) {
-        log.error("连接出错", throwable);
-    }
 }

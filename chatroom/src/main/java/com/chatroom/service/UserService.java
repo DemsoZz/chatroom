@@ -1,12 +1,23 @@
 package com.chatroom.service;
 
+import com.chatroom.mapper.UserMapper;
 import com.chatroom.pojo.User;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-public interface UserService {
+@Service
+public class UserService {
 
-    List<User> userlist();
+    @Autowired
+    private UserMapper userMapper;
 
-    int addUser(User user);
+    public List<User> userlist() {
+        return userMapper.userlist();
+    }
+
+    public int addUser(User user) {
+        return userMapper.addUser(user);
+    }
 }
