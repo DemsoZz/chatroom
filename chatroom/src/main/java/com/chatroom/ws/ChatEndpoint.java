@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatEndpoint {
 
     private static final Map<String, Session> userSession = new ConcurrentHashMap<>();
-    private HttpSession httpSession;
 
     private MessageMapper messageMapper;
 
@@ -34,56 +33,64 @@ public class ChatEndpoint {
         return messageMapper;
     }
 
-    private void broadcast(String message) {
+    private void broadcast(String message,Session mySession) {
         try {
-            Set<Map.Entry<String, Session>> entries = userSession.entrySet();
-            for (Map.Entry<String, Session> entry : entries) {
-                Session session = entry.getValue();
-                session.getBasicRemote().sendText(message);
-            }
+                Set<Map.Entry<String, Session>> entries = userSession.entrySet();
+                for (Map.Entry<String, Session> entry : entries) {
+                    if((!entry.getValue().equals(mySession))&&entry.getValue().isOpen()){
+                        Session session = entry.getValue();
+                        session.getBasicRemote().sendText(message);
+                    }
+                }
         }catch (Exception e) {
-            log.error(e.getMessage());
+            log.error("广播时出错：{}", e.getMessage());
         }
     }
 
     @OnOpen
     public void onOpen(Session session, EndpointConfig config) {
-        this.httpSession = (HttpSession) config.getUserProperties().get(HttpSession.class.getName());
-        String username = (String) this.httpSession.getAttribute("user");
+        HttpSession httpSession = (HttpSession) config.getUserProperties().get(HttpSession.class.getName());
+        String username = (String) httpSession.getAttribute("user");
         userSession.put(username, session);
-        broadcast(username + "加入群聊");
+        broadcast(username + "加入群聊",null);
+        log.info("{}连接成功", username);
     }
 
 
     @OnMessage
-    public void onMessage(String message) {
+    public void onMessage(String message, Session session) {
         JSONObject jsonObject = JSONObject.parseObject(message);
         String username = jsonObject.getString("username");
         String content = jsonObject.getString("content");
+        String avatar = jsonObject.getString("avatar");
         try{
             Message msg = new Message();
             msg.setContent(content);
             msg.setUsername(username);
+            msg.setAvatar(avatar);
             msg.setSendTime(LocalDateTime.now());
-             MessageMapper mapper = getMessageMapper();
+            MessageMapper mapper = getMessageMapper();
             int res = mapper.insert(msg);
             if (res > 0) {
-                log.info("消息保存成功");
+                broadcast(message,session);
+                session.getBasicRemote().sendText("发送成功");
+                log.info("{}:{}", username, content);
             }else {
                 log.info("消息保存失败");
             }
-            broadcast(message);
-            log.info("{}:{}", username, content);
         }catch (Exception e){
-            log.error(e.getMessage());
+            log.error("发消息错误：{}", e.getMessage());
         }
     }
 
     @OnClose
     public void onClose(Session session) {
-        String username = (String) this.httpSession.getAttribute("user");
-        userSession.remove(username);
-        broadcast(username + "离开了");
+        for (Map.Entry<String, Session> entry : userSession.entrySet()) {
+            if(entry.getValue().equals(session)){
+                broadcast(entry.getKey()+"离开了",session );
+                userSession.remove(entry.getKey());
+            }
+        }
     }
 
 }

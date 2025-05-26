@@ -12,6 +12,12 @@ public interface UserMapper {
     @Select("select * from users")
     List<User> userlist();
 
-    @Insert("insert into users (username, password) VALUES (#{username},#{password})")
+    @Insert("insert into users (username, password, avatar) VALUES (#{username},#{password},#{avatar})")
     int addUser(User user);
+
+    @Select(" SELECT * FROM users WHERE username = #{username} AND password = #{password}")
+    User findByUnameAndPassword(String username, String password);
+
+    @Select("SELECT * FROM users WHERE username = #{username}")
+    User findByUname(String uname);
 }

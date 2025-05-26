@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 @Data
 public class Message {
     private String username;
+    private String avatar;
     private String content;
     private LocalDateTime sendTime;
 }

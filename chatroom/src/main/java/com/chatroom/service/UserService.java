@@ -17,7 +17,30 @@ public class UserService {
         return userMapper.userlist();
     }
 
-    public int addUser(User user) {
-        return userMapper.addUser(user);
+    public User loginService(String username, String password) {
+        User user = userMapper.findByUnameAndPassword(username, password);
+        // 重要信息置空
+        if (user != null) {
+            user.setPassword("");
+        }
+        return user;
+    }
+
+    public User registerService(User user) {
+        //当新用户的用户名已存在时
+        if (userMapper.findByUname(user.getUsername()) != null) {
+            // 无法注册
+            return null;
+        } else {
+            // 插入用户到数据库
+            int result = userMapper.addUser(user);
+            if (result > 0) {
+                //返回创建好的用户对象
+                user.setPassword("");
+                return user;
+            } else {
+                return null;
+            }
+        }
     }
 }
