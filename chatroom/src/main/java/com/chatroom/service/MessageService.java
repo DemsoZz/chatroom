@@ -10,10 +10,16 @@ import java.util.List;
 @Service
 public class MessageService {
 
+    private static final int MAX_MESSAGE_COUNT = 100;
+
     @Autowired
     private MessageMapper messageMapper;
 
     public List<Message> getAllMessages() {
+        int messageCount = messageMapper.getMessageCount();
+        if(messageCount > MAX_MESSAGE_COUNT) {
+            messageMapper.deleteMessage();
+        }
         return messageMapper.selectAll();
     }
 }

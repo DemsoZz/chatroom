@@ -1,6 +1,7 @@
 package com.chatroom.mapper;
 
 import com.chatroom.pojo.Message;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
@@ -14,4 +15,10 @@ public interface MessageMapper {
 
     @Select("SELECT messageId,username,content,sendTime from message")
     List<Message> selectAll();
+
+    @Select("SELECT COUNT(*) from message")
+    int getMessageCount();
+
+    @Delete("delete from message where messageId = (SELECT MIN(messageId) from message)")
+    int deleteMessage();
 }
