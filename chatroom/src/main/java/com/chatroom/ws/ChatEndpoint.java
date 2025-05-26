@@ -24,6 +24,8 @@ public class ChatEndpoint {
 
     private static final Map<String, Session> userSession = new ConcurrentHashMap<>();
 
+    private static final int MAX_MESSAGE_COUNT = 100;
+
     private MessageMapper messageMapper;
 
     private MessageMapper getMessageMapper(){
@@ -64,13 +66,14 @@ public class ChatEndpoint {
         String content = jsonObject.getString("content");
         String avatar = jsonObject.getString("avatar");
         try{
-            Message msg = new Message();
-            msg.setContent(content);
-            msg.setUsername(username);
-            msg.setAvatar(avatar);
-            msg.setSendTime(LocalDateTime.now());
+            Message msg = new Message(username,avatar,content,LocalDateTime.now());
             MessageMapper mapper = getMessageMapper();
             int res = mapper.insert(msg);
+            int count = mapper.getMessageCount();
+            if(count>MAX_MESSAGE_COUNT){
+                int minId = mapper.getMinId();
+                mapper.deleteMessage(minId);
+            }
             if (res > 0) {
                 broadcast(message,session);
                 session.getBasicRemote().sendText("发送成功");
