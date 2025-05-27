@@ -25,7 +25,7 @@ public class WebsocketConfig {
         config.addExposedHeader("*");
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/chat", config);
+        source.registerCorsConfiguration("/**", config);
 
         return new CorsFilter(source);
     }

@@ -18,12 +18,7 @@ public class UserService {
     }
 
     public User loginService(String username, String password) {
-        User user = userMapper.findByUnameAndPassword(username, password);
-        // 重要信息置空
-        if (user != null) {
-            user.setPassword("");
-        }
-        return user;
+        return userMapper.findByUnameAndPassword(username, password);
     }
 
     public User registerService(User user) {
@@ -35,8 +30,6 @@ public class UserService {
             // 插入用户到数据库
             int result = userMapper.addUser(user);
             if (result > 0) {
-                //返回创建好的用户对象
-                user.setPassword("");
                 return user;
             } else {
                 return null;
