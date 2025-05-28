@@ -1,12 +1,13 @@
 package com.chatroom.ws;
 
 import com.alibaba.fastjson.JSONObject;
-import com.chatroom.config.GetHttpSessionConfig;
 import com.chatroom.mapper.MessageMapper;
+import com.chatroom.pojo.BroadcastMsg;
 import com.chatroom.pojo.Message;
 import com.chatroom.utils.SpringContextUtil;
-import jakarta.servlet.http.HttpSession;
+import com.chatroom.utils.TokenUtil;
 import jakarta.websocket.*;
+import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -18,13 +19,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 
 @Slf4j
-@ServerEndpoint(value = "/chat",configurator = GetHttpSessionConfig.class)
+@ServerEndpoint(value = "/chat/{token}")
 @Component
 public class ChatEndpoint {
 
     private static final Map<String, Session> userSession = new ConcurrentHashMap<>();
 
-    private static final int MAX_MESSAGE_COUNT = 100;
+    private static final int MAX_MESSAGE_COUNT = 50;
 
     private MessageMapper messageMapper;
 
@@ -35,13 +36,13 @@ public class ChatEndpoint {
         return messageMapper;
     }
 
-    private void broadcast(String message,Session mySession) {
+    private void broadcast(BroadcastMsg message, Session mySession) {
         try {
                 Set<Map.Entry<String, Session>> entries = userSession.entrySet();
                 for (Map.Entry<String, Session> entry : entries) {
                     if((!entry.getValue().equals(mySession))&&entry.getValue().isOpen()){
                         Session session = entry.getValue();
-                        session.getBasicRemote().sendText(message);
+                        session.getBasicRemote().sendText(JSONObject.toJSONString(message));
                     }
                 }
         }catch (Exception e) {
@@ -50,12 +51,22 @@ public class ChatEndpoint {
     }
 
     @OnOpen
-    public void onOpen(Session session, EndpointConfig config) {
-        HttpSession httpSession = (HttpSession) config.getUserProperties().get(HttpSession.class.getName());
-        String username = (String) httpSession.getAttribute("user");
-        userSession.put(username, session);
-        broadcast(username + "加入群聊",null);
-        log.info("{}连接成功", username);
+    public void onOpen(Session session, @PathParam("token")String token) {
+        String username;
+        if (TokenUtil.verify(token)) {
+            // 从Token中提取用户信息
+            username = TokenUtil.getTokenInfo(token);
+
+            // 将用户信息存储在WebSocket会话中
+        } else {
+            throw new SecurityException("Invalid token");
+        }
+        if(username != null){
+            userSession.put(username, session);
+            BroadcastMsg message = new BroadcastMsg(true,null,username + "加入群聊",null);
+            broadcast(message,null);
+            log.info("{}连接成功", username);
+        }
     }
 
 
@@ -75,8 +86,8 @@ public class ChatEndpoint {
                 mapper.deleteMessage(minId);
             }
             if (res > 0) {
-                broadcast(message,session);
-                session.getBasicRemote().sendText("发送成功");
+                BroadcastMsg broadcastMsg = new BroadcastMsg(false,username,content,avatar);
+                broadcast(broadcastMsg,session);
                 log.info("{}:{}", username, content);
             }else {
                 log.info("消息保存失败");
@@ -90,10 +101,16 @@ public class ChatEndpoint {
     public void onClose(Session session) {
         for (Map.Entry<String, Session> entry : userSession.entrySet()) {
             if(entry.getValue().equals(session)){
-                broadcast(entry.getKey()+"离开了",session );
+                BroadcastMsg message = new BroadcastMsg(true,null,entry.getKey()+"离开了",null);
+                broadcast(message,session );
                 userSession.remove(entry.getKey());
             }
         }
+    }
+
+    @OnError
+    public void onError(Session session, Throwable error) {
+        log.error("websocket连接出错{}", error.getMessage());
     }
 
 }

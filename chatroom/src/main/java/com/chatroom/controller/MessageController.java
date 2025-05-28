@@ -22,7 +22,7 @@ public class MessageController {
         List<Message> messages = messageService.getAllMessages();
         if(messages != null){
             log.info("获取消息记录成功");
-            return Result.success(messages);
+            return Result.success("success",messages);
         }else {
             log.info("获取消息记录失败");
             return Result.error("messages is null");
