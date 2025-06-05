@@ -10,10 +10,10 @@ import java.util.List;
 
 @Mapper
 public interface MessageMapper {
-    @Insert("insert into message (username,content,avatar,sendTime) VALUES (#{username},#{content},#{avatar},#{sendTime})")
+    @Insert("insert into message (username,avatar,content,sendTime) VALUES (#{username},#{avatar},#{content},#{sendTime})")
     int insert(Message message);
 
-    @Select("SELECT messageId,username,content,avatar,sendTime from message")
+    @Select("SELECT username,avatar,content,sendTime from message")
     List<Message> selectAll();
 
     @Select("SELECT COUNT(*) from message")
